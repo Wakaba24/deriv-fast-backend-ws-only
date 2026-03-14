@@ -1,32 +1,55 @@
-export const state = {
-  connected: false,
-  authorized: false,
-  lastError: null,
+export function createSessionState(overrides = {}) {
+  return {
+    connected: false,
+    authorized: false,
+    lastError: null,
+    auth: {
+      usingFallback: false,
+      account: null,
+      loginid: null,
+      appId: null,
+      authInProgress: false,
+      tokenLast4: null
+    },
 
-  defaults: {
-    symbol: process.env.DEFAULT_SYMBOL || "R_50",
-    currency: process.env.DEFAULT_CURRENCY || "USD",
-    basis: "stake"
-  },
+    defaults: {
+      symbol: overrides.defaultSymbol || process.env.DEFAULT_SYMBOL || "R_50",
+      currency: overrides.defaultCurrency || process.env.DEFAULT_CURRENCY || "USD",
+      basis: overrides.defaultBasis || "stake"
+    },
 
-  ticks: {
-    symbol: null,
-    last: null,
-    buffer: []
-  },
+    ticks: {
+      symbol: null,
+      last: null,
+      buffer: []
+    },
 
-  trade: {
-    // Concurrency settings
-    maxConcurrent: Number(process.env.MAX_CONCURRENT_TRADES || 1),
-    whenFull: (process.env.WHEN_FULL || "queue").toLowerCase(), // queue | reject
+    trade: {
+      maxConcurrent: Number(overrides.maxConcurrent ?? process.env.MAX_CONCURRENT_TRADES ?? 1),
+      whenFull: String(overrides.whenFull ?? process.env.WHEN_FULL ?? "queue").toLowerCase(),
 
-    queue: [],
+      queue: [],
+      activeByContract: new Map(),
+      pendingBuys: new Map(),
+      lastResult: null
+    }
+  };
+}
 
-    // Active trades indexed by contract_id
-    activeByContract: new Map(), // contract_id -> { requestId, startedAt, payload }
-    // Active buys before contract_id known (indexed by requestId)
-    pendingBuys: new Map(), // requestId -> { requestId, startedAt, payload }
-
-    lastResult: null
-  }
-};
+export function currentStatus(state) {
+  return {
+    connected: state.connected,
+    authorized: state.authorized,
+    lastError: state.lastError,
+    auth: state.auth,
+    defaults: state.defaults,
+    trade: {
+      maxConcurrent: state.trade.maxConcurrent,
+      whenFull: state.trade.whenFull,
+      active_count: state.trade.activeByContract.size + state.trade.pendingBuys.size,
+      queue_length: state.trade.queue.length,
+      lastResult: state.trade.lastResult
+    },
+    tick: state.ticks.last
+  };
+}
